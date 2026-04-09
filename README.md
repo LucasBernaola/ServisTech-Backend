@@ -23,8 +23,8 @@ El backend está construido con **Django** y **Django REST Framework**, usando *
 
 ### Estructura del proyecto
 
-necotec/
-├── necotec/              # Configuración del proyecto
+servistech/
+├── servistech/              # Configuración del proyecto
 │   ├── init.py
 │   ├── settings.py       # Configuración de Django
 │   ├── urls.py           # Rutas principales
@@ -119,7 +119,7 @@ pip install -r requirements.txt
     
 ### Estado actual
 - El backend está completo para el flujo básico: registro, creación de fichas, asignación a técnicos, liberación, y consulta por rol.
-- Pendientes:
+
   - Notificaciones (email/WhatsApp).
   - Actualizaciones en tiempo real (WebSockets con Django Channels).
   - Encriptación de datos sensibles (ej. DNI).
