@@ -1,4 +1,4 @@
-# Necotec - Sistema de Gestión de Reparaciones
+# ServisTech - Sistema de Gestión de Reparaciones
 
 Este proyecto es un sistema de gestión para un taller de reparaciones electrónicas, diseñado para manejar clientes, órdenes de reparación y técnicos. Está dividido en dos partes: backend y frontend. Este README documenta el estado actual del backend y se actualizará con el frontend cuando esté desarrollado.
 
