@@ -11,7 +11,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 
-DEBUG = config('DEBUG', default=False, cast=bool)
+def cast_debug(value):
+    value = str(value).strip().lower()
+    return value in {"1", "true", "yes", "on", "dev", "development", "local"}
+
+
+DEBUG = config('DEBUG', default=False, cast=cast_debug)
 
 if DEBUG:
     # Configuración para desarrollo local
@@ -180,7 +185,15 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-FRONTEND_TRACKING_URL_TEMPLATE="http://localhost:3000/seguimiento/{token}"
-FRONTEND_PRINT_URL_TEMPLATE="http://localhost:3000/imprimir/orden/{orden_id}"
-FRONTEND_TRACKING_URL_TEMPLATE="http://localhost:3000/seguimiento/{token}"
-FRONTEND_FICHA_URL_TEMPLATE="http://localhost:3000/imprimir/ficha/{orden_id}"
+FRONTEND_TRACKING_URL_TEMPLATE = config(
+    "FRONTEND_TRACKING_URL_TEMPLATE",
+    default="http://localhost:3000/seguimiento/{token}",
+)
+FRONTEND_PRINT_URL_TEMPLATE = config(
+    "FRONTEND_PRINT_URL_TEMPLATE",
+    default="http://localhost:3000/imprimir/orden/{orden_id}",
+)
+FRONTEND_FICHA_URL_TEMPLATE = config(
+    "FRONTEND_FICHA_URL_TEMPLATE",
+    default="http://localhost:3000/imprimir/ficha/{orden_id}",
+)

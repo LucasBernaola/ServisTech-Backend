@@ -29,6 +29,7 @@ from .serializers import (
     UserSerializer,
     ClienteSerializer,
     OrdenSerializer,
+    OrdenListSerializer,
     OrdenFotoSerializer
 )
 from rest_framework.exceptions import MethodNotAllowed
@@ -272,6 +273,11 @@ class OrdenViewSet(viewsets.ModelViewSet):
     serializer_class = OrdenSerializer
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in {"list", "recent"}:
+            return OrdenListSerializer
+        return OrdenSerializer
 
     def perform_create(self, serializer):
         serializer.save(creado_por=self.request.user)

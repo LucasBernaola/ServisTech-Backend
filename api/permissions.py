@@ -1,10 +1,8 @@
 from rest_framework.exceptions import PermissionDenied
-from usuarios.roles import RolPermission
 
 class RolPermisoMixin:
     """
-    Mixin para validar permisos basados en roles definidos
-    en la clase RolPermission.
+    Permiso simple para vistas internas que necesitan usuario de staff.
     """
     permiso_nombre: str = None
 
@@ -14,8 +12,8 @@ class RolPermisoMixin:
             initial(request, *args, **kwargs)
 
         if self.permiso_nombre:
-            tiene = RolPermission().check_permission(request, self.permiso_nombre)
-            if not tiene:
+            user = getattr(request, "user", None)
+            if not (user and user.is_authenticated and user.is_staff):
                 raise PermissionDenied(
                     f"No tienes permiso para {self.permiso_nombre.replace('_', ' ')}."
                 )

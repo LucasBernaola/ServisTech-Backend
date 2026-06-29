@@ -37,6 +37,7 @@ class OrdenFotoSerializer(serializers.ModelSerializer):
 
 class OrdenSerializer(serializers.ModelSerializer):
     estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+    bloqueo_resumen = serializers.SerializerMethodField()
 
     cliente = ClienteSerializer(read_only=True)
     cliente_id = serializers.PrimaryKeyRelatedField(
@@ -69,6 +70,7 @@ class OrdenSerializer(serializers.ModelSerializer):
             "cobro_final",
 
             "bloqueo_tipo",
+            "bloqueo_resumen",
             "bloqueo_valor",
 
             "observaciones_finales",
@@ -90,10 +92,21 @@ class OrdenSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "cobro_final",
+            "bloqueo_resumen",
         ]
 
     def get_cobro_final(self, obj: Orden):
         return obj.cobro_final
+
+    def get_bloqueo_resumen(self, obj: Orden):
+        if obj.bloqueo_tipo == Orden.BloqueoTipo.NONE or not obj.bloqueo_valor:
+            return "Sin bloqueo"
+        labels = {
+            Orden.BloqueoTipo.PIN: "PIN cargado",
+            Orden.BloqueoTipo.TEXTO: "Contraseña cargada",
+            Orden.BloqueoTipo.PATRON: "Patrón cargado",
+        }
+        return labels.get(obj.bloqueo_tipo, "Bloqueo cargado")
 
     def validate(self, attrs):
         """
@@ -132,6 +145,14 @@ class OrdenSerializer(serializers.ModelSerializer):
 
         attrs["bloqueo_valor"] = valor
         return attrs
+
+
+class OrdenListSerializer(OrdenSerializer):
+    class Meta(OrdenSerializer.Meta):
+        fields = [
+            field for field in OrdenSerializer.Meta.fields
+            if field != "bloqueo_valor"
+        ]
 
 
 class OrdenPublicSerializer(serializers.ModelSerializer):
