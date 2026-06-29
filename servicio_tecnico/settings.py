@@ -16,7 +16,11 @@ def cast_debug(value):
     return value in {"1", "true", "yes", "on", "dev", "development", "local"}
 
 
-DEBUG = config('DEBUG', default=False, cast=cast_debug)
+DJANGO_DEBUG_VALUE = config(
+    'DJANGO_DEBUG',
+    default=config('DEBUG', default=False),
+)
+DEBUG = cast_debug(DJANGO_DEBUG_VALUE)
 
 if DEBUG:
     # Configuración para desarrollo local

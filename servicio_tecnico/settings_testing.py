@@ -1,7 +1,7 @@
 import os
 
 os.environ.setdefault('SECRET_KEY', 'test-secret-key')
-os.environ.setdefault('DEBUG', 'True')
+os.environ.setdefault('DJANGO_DEBUG', 'True')
 os.environ.setdefault('ALLOWED_HOSTS', 'localhost')
 os.environ.setdefault('DB_NAME', 'test')
 os.environ.setdefault('DB_USER', 'test')

@@ -41,11 +41,11 @@ backend/
 
 ## Variables de entorno
 
-Crear un `.env` tomando como base `.env.example`.
+Crear un `.env` dentro de `backend/`.
 
 ```env
 SECRET_KEY=change-me
-DEBUG=False
+DJANGO_DEBUG=False
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 DB_HOST=
@@ -64,13 +64,13 @@ Si `DB_HOST` queda vacio, Django usa SQLite local. Si se define `DB_HOST`, usa P
 Para desarrollo local se puede usar:
 
 ```env
-DEBUG=True
+DJANGO_DEBUG=True
 ```
 
 En produccion conviene mantener:
 
 ```env
-DEBUG=False
+DJANGO_DEBUG=False
 ```
 
 ## Instalacion local
@@ -202,8 +202,8 @@ Actualmente hay tests para:
 
 ## Notas de desarrollo
 
-- `DEBUG=True` esta pensado para local.
-- Con `DEBUG=False` se activan cookies seguras, SSL redirect y HSTS.
+- `DJANGO_DEBUG=True` esta pensado para local.
+- Con `DJANGO_DEBUG=False` se activan cookies seguras, SSL redirect y HSTS.
 - CORS esta configurado para el frontend local y el deploy actual.
 - Los tokens se leen desde cookies HttpOnly, con fallback a `Authorization: Bearer` para algunos usos internos.
 - El endpoint publico por token no requiere login, pero devuelve datos acotados.
