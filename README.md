@@ -1,51 +1,161 @@
 # ServisTech Backend
 
-Backend de ServisTech, un sistema de gestion para talleres de reparacion tecnica. La idea del proyecto es cubrir el flujo interno de un taller: cargar clientes, crear ordenes, registrar el estado de cada equipo, guardar fotos, controlar importes y generar enlaces de seguimiento para el cliente.
+Backend de ServisTech, un sistema de gestión para talleres de reparación técnica. Esta API cubre el flujo interno del taller: clientes, órdenes de reparación, estados de trabajo, importes, fotos, datos de retiro y seguimiento público para el cliente.
 
-Esta parte esta hecha con Django, Django REST Framework y Simple JWT.
-
-## Que resuelve
-
-- Gestion de clientes del taller.
-- Gestion de ordenes de reparacion.
-- Estados de trabajo: pendiente, diagnosticado, en progreso, reparado, finalizado y retirado.
-- Presupuesto, senia, costo final, descuento por garantia y saldo final.
-- Registro de datos de retiro del equipo.
-- Fotos asociadas a una orden.
-- Seguimiento publico por token, sin exponer toda la informacion interna.
-- Login con JWT guardado en cookies HttpOnly.
-- Admin de Django para mantenimiento interno.
+El proyecto está construido con Django, Django REST Framework y autenticación JWT mediante cookies HttpOnly.
 
 ## Stack
 
 - Python
-- Django 5
+- Django 5.2
 - Django REST Framework
 - Simple JWT
-- PostgreSQL en produccion o SQLite para desarrollo local
-- Whitenoise para archivos estaticos
-- Pillow para imagenes
+- SQLite para desarrollo local
+- PostgreSQL para producción
+- WhiteNoise para archivos estáticos
+- Pillow para imágenes
+- django-cors-headers
+- django-grappelli para el admin
 
-## Estructura principal
+## Qué resuelve
+
+- Gestión de clientes del taller.
+- Gestión de órdenes de reparación.
+- Flujo de estados: pendiente, diagnosticado, en progreso, reparado, finalizado y retirado.
+- Presupuesto, seña, costo final, descuento por garantía y cobro final.
+- Registro de retiro del equipo.
+- Carga de fotos asociadas a una orden.
+- Ficha técnica e impresión de orden desde el frontend.
+- Seguimiento público por URL.
+- Login con JWT guardado en cookies HttpOnly.
+- Protección de datos sensibles del equipo, como PIN, texto o patrón de bloqueo.
+
+## Estructura del proyecto
 
 ```txt
 backend/
-  api/                 Endpoints, serializers, auth, tests y paginacion
-  ordenes/             Modelos principales del negocio
-  servicio_tecnico/    Settings, urls, asgi y wsgi
-  media/               Archivos subidos en local
-  staticfiles/         Archivos generados por collectstatic
+  api/
+    authentication.py      Autenticación por cookies JWT
+    middleware.py          Refresh automático de cookies
+    pagination.py          Paginación estándar
+    permissions.py         Permisos auxiliares
+    serializers.py         Serializers de usuarios, clientes y órdenes
+    urls.py                Rutas de la API
+    views.py               ViewSets y endpoints principales
+    tests.py               Tests de API
+  ordenes/
+    models.py              Modelos de Cliente, Orden y OrdenFoto
+    admin.py               Registro en Django Admin
+    tests.py               Tests del módulo
+    migrations/            Migraciones
+  servicio_tecnico/
+    settings.py            Configuración principal
+    settings_testing.py    Configuración para tests
+    urls.py                URLs globales
+    asgi.py
+    wsgi.py
+  manage.py
+  requirements.txt
 ```
 
-`media/` y `staticfiles/` no deberian crecer como parte del codigo fuente. Quedan ignorados para nuevos archivos porque son salida local o de build.
+## Modelos principales
+
+### Cliente
+
+Representa a una persona que deja un equipo en el taller.
+
+Campos principales:
+
+- nombre;
+- apellido;
+- DNI;
+- email;
+- celular;
+- fechas de creación y actualización.
+
+La eliminación de clientes está bloqueada desde la API para no perder historial de órdenes.
+
+### Orden
+
+Representa una reparación o trabajo técnico.
+
+Campos principales:
+
+- cliente asociado;
+- usuario que creó la orden;
+- estado;
+- tipo de dispositivo;
+- marca, modelo e IMEI/serial;
+- falla reportada;
+- condición del equipo;
+- accesorios entregados;
+- diagnóstico;
+- trabajo realizado;
+- repuestos;
+- presupuesto;
+- seña;
+- costo final;
+- garantía;
+- datos de bloqueo;
+- datos de retiro;
+- token público de seguimiento.
+
+### OrdenFoto
+
+Permite asociar imágenes a una orden, por ejemplo fotos de ingreso, estado del equipo o evidencia del trabajo.
+
+## Estados de una orden
+
+El flujo de trabajo usa estos estados:
+
+```txt
+pendiente
+diagnosticado
+en_progreso
+reparado
+finalizado
+retirado
+```
+
+El cambio de estado se realiza desde:
+
+```txt
+PATCH /api/ordenes/{id}/estado/
+```
+
+Algunas transiciones validan datos obligatorios:
+
+- Para pasar a `diagnosticado`, se requiere presupuesto.
+- Para pasar a `finalizado`, se requiere costo final.
+- Para pasar a `retirado`, se requiere nombre de quien retira y costo final cargado.
+
+El backend también limpia datos cuando se vuelve hacia atrás desde ciertos estados, por ejemplo al revertir una orden retirada.
+
+## Datos sensibles
+
+Las órdenes pueden guardar un dato de bloqueo del equipo:
+
+- sin contraseña;
+- PIN;
+- texto;
+- patrón.
+
+El valor completo del bloqueo se considera información sensible.
+
+Reglas aplicadas:
+
+- El listado de órdenes no devuelve `bloqueo_valor`.
+- El listado devuelve `bloqueo_resumen`, por ejemplo `PIN cargado`.
+- El detalle interno autenticado sí puede devolver el valor completo.
+- El seguimiento público nunca devuelve datos de bloqueo.
 
 ## Variables de entorno
 
-Crear un `.env` dentro de `backend/`.
+Crear un archivo `.env` dentro de `backend/`.
 
 ```env
 SECRET_KEY=change-me
-DJANGO_DEBUG=False
+DJANGO_DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 DB_HOST=
@@ -59,21 +169,17 @@ FRONTEND_PRINT_URL_TEMPLATE=http://localhost:3000/imprimir/orden/{orden_id}
 FRONTEND_FICHA_URL_TEMPLATE=http://localhost:3000/imprimir/ficha/{orden_id}
 ```
 
-Si `DB_HOST` queda vacio, Django usa SQLite local. Si se define `DB_HOST`, usa PostgreSQL con las variables `DB_NAME`, `DB_USER`, `DB_PASSWORD` y `DB_PORT`.
+Base de datos:
 
-Para desarrollo local se puede usar:
+- Si `DB_HOST` queda vacío, Django usa SQLite local.
+- Si `DB_HOST` tiene valor, Django usa PostgreSQL con `DB_NAME`, `DB_USER`, `DB_PASSWORD` y `DB_PORT`.
 
-```env
-DJANGO_DEBUG=True
-```
+Seguridad:
 
-En produccion conviene mantener:
+- `DJANGO_DEBUG=True` es para desarrollo local.
+- `DJANGO_DEBUG=False` activa configuración de producción: cookies seguras, redirect HTTPS y HSTS.
 
-```env
-DJANGO_DEBUG=False
-```
-
-## Instalacion local
+## Instalación local
 
 Desde la carpeta `backend`:
 
@@ -83,13 +189,13 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Despues aplicar migraciones:
+Aplicar migraciones:
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py migrate
 ```
 
-Crear un usuario administrador:
+Crear un superusuario:
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py createsuperuser
@@ -101,53 +207,71 @@ Levantar el servidor:
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Por defecto queda disponible en:
+Servidor local:
 
 ```txt
-http://localhost:8000
+http://127.0.0.1:8000
+```
+
+Admin de Django:
+
+```txt
+http://127.0.0.1:8000/admin/
 ```
 
 ## Endpoints principales
 
 Todos los endpoints internos viven bajo `/api/`.
 
-### Auth
+### Autenticación y usuario
 
-| Metodo | Ruta | Descripcion |
+| Método | Ruta | Descripción |
 | --- | --- | --- |
-| POST | `/api/token/` | Login. Guarda `access_token` y `refresh_token` en cookies HttpOnly. |
-| POST | `/api/logout/` | Cierra sesion borrando cookies. |
-| GET/PATCH | `/api/profile/` | Lee o actualiza los datos del usuario logueado. |
-| POST | `/api/profile/change-password/` | Cambia la password del usuario logueado. |
+| POST | `/api/token/` | Login. Devuelve y setea cookies JWT. |
+| POST | `/api/logout/` | Cierra sesión borrando cookies. |
+| GET/PATCH | `/api/profile/` | Lee o actualiza el usuario autenticado. |
+| POST | `/api/profile/change-password/` | Cambia la contraseña del usuario autenticado. |
 | GET | `/api/verificar-admin/` | Devuelve 200 si el usuario es superuser. |
 
 ### Clientes
 
-| Metodo | Ruta | Descripcion |
+| Método | Ruta | Descripción |
 | --- | --- | --- |
-| GET | `/api/clientes/` | Lista clientes con paginacion. |
+| GET | `/api/clientes/` | Lista clientes con paginación. |
 | POST | `/api/clientes/` | Crea un cliente. |
-| GET | `/api/clientes/?search=texto` | Busca por nombre, apellido, DNI o celular. |
-| GET | `/api/clientes/recent/` | Devuelve los ultimos clientes cargados. |
+| GET | `/api/clientes/{id}/` | Detalle de cliente. |
 | PATCH | `/api/clientes/{id}/` | Actualiza un cliente. |
+| GET | `/api/clientes/recent/` | Últimos clientes cargados. |
 
-La eliminacion de clientes esta bloqueada para no perder historial de ordenes.
+Búsqueda:
 
-### Ordenes
+```txt
+/api/clientes/?search=juan
+/api/clientes/?search=30111222
+```
 
-| Metodo | Ruta | Descripcion |
+Ordenamiento:
+
+```txt
+/api/clientes/?ordering=apellido
+/api/clientes/?ordering=-created_at
+```
+
+### Órdenes
+
+| Método | Ruta | Descripción |
 | --- | --- | --- |
-| GET | `/api/ordenes/` | Lista ordenes con paginacion. |
+| GET | `/api/ordenes/` | Lista órdenes con paginación. |
 | POST | `/api/ordenes/` | Crea una orden. |
-| GET | `/api/ordenes/{id}/` | Detalle de una orden. |
+| GET | `/api/ordenes/{id}/` | Detalle completo de una orden. |
 | PATCH | `/api/ordenes/{id}/` | Actualiza datos de una orden. |
 | PATCH | `/api/ordenes/{id}/estado/` | Cambia el estado de trabajo. |
 | POST | `/api/ordenes/{id}/fotos/` | Sube una o varias fotos. |
-| GET | `/api/ordenes/recent/` | Ultimas ordenes cargadas. |
-| GET | `/api/ordenes/{id}/print/ficha-tecnica/` | Redirige a la ficha imprimible del frontend. |
-| GET | `/api/ordenes/{id}/print/seguimiento/` | Redirige a la impresion de seguimiento. |
+| GET | `/api/ordenes/recent/` | Últimas órdenes cargadas. |
+| GET | `/api/ordenes/{id}/print/ficha-tecnica/` | Redirige a la ficha técnica del frontend. |
+| GET | `/api/ordenes/{id}/print/seguimiento/` | Redirige a la impresión de orden del frontend. |
 
-Filtros utiles:
+Filtros:
 
 ```txt
 /api/ordenes/?tab=pendiente
@@ -156,61 +280,126 @@ Filtros utiles:
 /api/ordenes/?search=samsung
 ```
 
-### Seguimiento publico
+### Seguimiento público
 
-| Metodo | Ruta | Descripcion |
+| Método | Ruta | Descripción |
 | --- | --- | --- |
-| GET | `/api/public/orden/{token}/` | Seguimiento publico para el cliente. No requiere login. |
+| GET | `/api/public/orden/{token}/` | Devuelve información pública de una orden. No requiere login. |
 
-Este endpoint devuelve solo informacion minima: estado, cliente, equipo, falla reportada y datos de retiro si corresponde.
+Este endpoint devuelve datos mínimos para el cliente:
 
-## Datos sensibles
+- id de orden;
+- estado;
+- cliente;
+- equipo;
+- falla reportada;
+- fecha de actualización;
+- datos de retiro si corresponde.
 
-Las ordenes pueden guardar un dato de bloqueo del equipo: PIN, texto o patron. Ese dato se trata como informacion sensible.
+No devuelve información interna ni datos de bloqueo.
 
-Por eso:
+## Autenticación
 
-- En listados de ordenes no se devuelve `bloqueo_valor`.
-- En listados se devuelve `bloqueo_resumen`, por ejemplo `PIN cargado`.
-- El valor completo queda disponible solamente en el detalle interno autenticado de una orden, porque el taller puede necesitarlo para trabajar sobre el equipo.
-- El seguimiento publico nunca devuelve el bloqueo del equipo.
+El backend usa Simple JWT, pero los tokens se guardan como cookies HttpOnly:
+
+- `access_token`: duración corta;
+- `refresh_token`: duración más larga.
+
+La clase `CookieJWTAuthentication` permite autenticar leyendo el token desde la cookie. También se mantiene soporte para `Authorization: Bearer` en casos donde haga falta.
+
+El middleware `CookieRefreshMiddleware` se encarga de renovar cookies cuando corresponde.
+
+## CORS y frontend
+
+El backend está preparado para trabajar con frontend separado. En desarrollo se aceptan orígenes como:
+
+```txt
+http://localhost:3000
+http://localhost:4321
+```
+
+Además, `CORS_ALLOW_CREDENTIALS=True` permite que el navegador trabaje con cookies.
+
+## Archivos subidos y estáticos
+
+En desarrollo:
+
+- las fotos se guardan en `media/`;
+- los estáticos recolectados van a `staticfiles/`.
+
+Ambas carpetas están ignoradas por Git porque son archivos generados o subidos localmente.
 
 ## Tests
 
-Los tests usan `servicio_tecnico.settings_testing`, SQLite en memoria y un hasher rapido para passwords.
+Ejecutar tests:
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py test --settings=servicio_tecnico.settings_testing
 ```
 
-Check general:
+Check de Django:
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py check
 ```
 
-Actualmente hay tests para:
+Cobertura actual:
 
-- Login con cookies HttpOnly.
-- Perfil de usuario.
-- Creacion y busqueda de clientes.
-- Bloqueo de eliminacion de clientes.
-- Creacion de ordenes.
-- Validacion de cambio de estado.
-- Ocultamiento de datos sensibles en listados.
-- Seguimiento publico por token.
+- login con cookies HttpOnly;
+- perfil de usuario;
+- creación y búsqueda de clientes;
+- bloqueo de eliminación de clientes;
+- creación de órdenes;
+- validación de cambio de estado;
+- ocultamiento de datos sensibles en listados;
+- seguimiento público sin autenticación.
 
-## Notas de desarrollo
+## Relación con el frontend
 
-- `DJANGO_DEBUG=True` esta pensado para local.
-- Con `DJANGO_DEBUG=False` se activan cookies seguras, SSL redirect y HSTS.
-- CORS esta configurado para el frontend local y el deploy actual.
-- Los tokens se leen desde cookies HttpOnly, con fallback a `Authorization: Bearer` para algunos usos internos.
-- El endpoint publico por token no requiere login, pero devuelve datos acotados.
+El frontend consume esta API para:
 
-## Pendiente tecnico
+- autenticar usuarios;
+- listar y buscar clientes;
+- crear y editar órdenes;
+- cambiar estados;
+- subir fotos;
+- generar URLs de seguimiento;
+- abrir vistas imprimibles.
 
-- Sacar del repo los archivos ya trackeados en `media/` y `staticfiles/` en un commit separado.
-- Revisar si a futuro conviene separar permisos por roles reales dentro del taller.
-- Agregar tests para subida de fotos.
-- Agregar documentacion de deploy cuando quede definido el hosting final.
+Las URLs de impresión y seguimiento se configuran con:
+
+```env
+FRONTEND_TRACKING_URL_TEMPLATE
+FRONTEND_PRINT_URL_TEMPLATE
+FRONTEND_FICHA_URL_TEMPLATE
+```
+
+Esto permite cambiar el dominio del frontend sin tocar lógica de negocio.
+
+## Validaciones recomendadas antes de subir cambios
+
+```powershell
+.\.venv\Scripts\python.exe manage.py check
+.\.venv\Scripts\python.exe manage.py test --settings=servicio_tecnico.settings_testing
+```
+
+También conviene probar manualmente:
+
+- login;
+- creación de cliente;
+- creación de orden;
+- cambio de estado;
+- carga de fotos;
+- seguimiento público;
+- redirecciones de impresión.
+
+## Estado actual
+
+El backend está listo para demo de portfolio: tiene API REST, autenticación por cookies, reglas de negocio, seguimiento público, manejo de datos sensibles y tests sobre los flujos principales.
+
+Mejoras posibles a futuro:
+
+- sumar tests para subida de fotos;
+- agregar roles más específicos dentro del taller;
+- documentar el deploy final cuando el hosting quede cerrado;
+- agregar auditoría de cambios de estado si el proyecto crece.
