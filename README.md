@@ -375,20 +375,3 @@ FRONTEND_FICHA_URL_TEMPLATE
 ```
 
 Esto permite cambiar el dominio del frontend sin tocar lógica de negocio.
-
-## Validaciones recomendadas antes de subir cambios
-
-```powershell
-.\.venv\Scripts\python.exe manage.py check
-.\.venv\Scripts\python.exe manage.py test --settings=servicio_tecnico.settings_testing
-```
-
-También conviene probar manualmente:
-
-- login;
-- creación de cliente;
-- creación de orden;
-- cambio de estado;
-- carga de fotos;
-- seguimiento público;
-- redirecciones de impresión.
